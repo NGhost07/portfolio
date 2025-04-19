@@ -1,0 +1,55 @@
+networks:
+  portfolio_network:
+    name: portfolio_network
+    driver: bridge
+
+services:
+  portfolio_mongo_db:
+    image: mongo:latest
+    container_name: portfolio_mongo_db
+    restart: always
+    ports:
+      - "27020:27017"
+    volumes:
+      - portfolio_mongo_db:/data/db
+    networks:
+      - portfolio_network
+
+  portfolio_redis_server:
+    image: redis:latest
+    container_name: portfolio_redis_server
+    restart: always
+    ports:
+      - "6390:6379"
+    networks:
+      - portfolio_network
+
+  portfolio_api:
+    build: .
+    container_name: portfolio_api
+    image: portfolio_api:latest
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+      PORT: 3005
+      MONGO_URI: mongodb://portfolio_mongo_db:27017/portfolio
+      REDIS_URI: redis://portfolio_redis_server:6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      S3_REGION: ${S3_REGION}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+    ports:
+      - '3005:3005'
+    networks:
+      portfolio_network:
+    depends_on:
+      - portfolio_mongo_db
+      - portfolio_redis_server
+
+volumes:
+  portfolio_mongo_db:
