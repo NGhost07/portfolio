@@ -11,6 +11,8 @@ import {
 import { UserService } from '../services'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { CreateUserDto, QueryUserDto, UpdateUserDto } from '../dtos'
+import { ApiPaginated } from 'src/common/decorators'
+import { User } from '../schemas'
 
 @Controller('users')
 @ApiTags('Users')
@@ -18,8 +20,12 @@ import { CreateUserDto, QueryUserDto, UpdateUserDto } from '../dtos'
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post('search')
+  @Get()
   @ApiOperation({ summary: 'Find Users' })
+  @ApiPaginated(User, {
+    description: 'List of users with pagination',
+    sortableFields: ['name', 'email', 'createdAt', 'updatedAt'],
+  })
   async findUsers(@Query() query: QueryUserDto) {
     return this.userService.findUsers(query)
   }

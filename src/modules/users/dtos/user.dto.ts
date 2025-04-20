@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator'
+import { PaginationDto } from 'src/common/dto'
 
 export class CreateUserDto {
   @ApiProperty({ description: 'User name' })
@@ -35,15 +36,7 @@ export class UpdateUserDto {
   avatar?: string
 }
 
-export class QueryUserDto {
-  @ApiPropertyOptional({ description: 'Page number', default: 1 })
-  @IsOptional()
-  page?: number
-
-  @ApiPropertyOptional({ description: 'Items per page', default: 10 })
-  @IsOptional()
-  limit?: number
-
+export class QueryUserDto extends PaginationDto {
   @ApiPropertyOptional({ description: 'Filter by name' })
   @IsOptional()
   @IsString()
