@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnApplicationBootstrap, Optional } from '@nestjs/common'
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { InjectConnection, getModelToken } from '@nestjs/mongoose'
 import { Connection, Model } from 'mongoose'
 import { ModuleRef } from '@nestjs/core'
@@ -14,19 +14,12 @@ export class DbService implements OnApplicationBootstrap {
 
   constructor(
     @InjectConnection() private readonly primaryConnection: Connection,
-    @Optional() @InjectConnection('secondary') private readonly secondaryConnection: Connection,
     private readonly moduleRef: ModuleRef
   ) {
     this.logger.log('Database service initialized')
 
     // Register primary connection
     this.connectionRegistry.set('primary', primaryConnection)
-
-    // Register secondary connection if available
-    if (secondaryConnection) {
-      this.connectionRegistry.set('secondary', secondaryConnection)
-      this.logger.log('Secondary database connection registered')
-    }
   }
 
   /**

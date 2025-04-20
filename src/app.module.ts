@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common'
-import { ConfigModule } from '@nestjs/config'
+import { ConfigModule, ConfigService } from '@nestjs/config'
 import { DbModule } from './modules/db'
 import { UsersModule } from './modules/users/users.module'
 
@@ -8,8 +8,8 @@ import { UsersModule } from './modules/users/users.module'
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    // Use multiple connections if MONGO_URI_SECONDARY is defined
-    DbModule.forRootMultipleConnections(),
+    // Use the DB module with a single connection
+    DbModule.forRoot(),
     UsersModule,
   ],
   controllers: [],
