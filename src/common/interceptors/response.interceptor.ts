@@ -8,6 +8,7 @@ import {
 import { Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
 import { Response } from 'express'
+import { instanceToPlain } from 'class-transformer'
 
 /**
  * Interface for pagination metadata
@@ -55,17 +56,20 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, ApiResponse<T>
           data: null,
         }
 
+        // Convert data to plain object (handles class instances, Date objects, etc.)
+        const plainData = data !== null && data !== undefined ? this.transformToPlain(data) : null
+
         // Handle different response types
-        if (data === null || data === undefined) {
+        if (plainData === null) {
           // No data returned
           return standardResponse
-        } else if (data && typeof data === 'object' && 'items' in data && 'meta' in data) {
+        } else if (plainData && typeof plainData === 'object' && 'items' in plainData && 'meta' in plainData) {
           // Paginated response
           // Cast items to R type
-          standardResponse.data = data.items as R
+          standardResponse.data = plainData.items as R
 
           // Type guard for meta object
-          const meta = data.meta as any
+          const meta = plainData.meta
           if (this.isValidPaginationMeta(meta)) {
             standardResponse.pagination = {
               totalItems: meta.totalItems,
@@ -78,11 +82,61 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, ApiResponse<T>
           return standardResponse
         } else {
           // Regular data response
-          standardResponse.data = data
+          standardResponse.data = plainData as R
           return standardResponse
         }
       }),
     )
+  }
+
+  /**
+   * Transform data to plain object
+   * @param data - Data to transform
+   * @returns Plain object representation of the data
+   */
+  private transformToPlain(data: any): any {
+    if (data === null || data === undefined) {
+      return null
+    }
+
+    // Handle arrays
+    if (Array.isArray(data)) {
+      return data.map(item => this.transformToPlain(item))
+    }
+
+    // Handle Mongoose documents
+    if (data && typeof data === 'object') {
+      // Check if it's a Mongoose document (has _doc property)
+      if (data._doc) {
+        return { ...data._doc }
+      }
+
+      // Check if it's a Mongoose document with toJSON method
+      if (data && typeof data.toJSON === 'function') {
+        // Disable ESLint for this line as we've already checked that toJSON is a function
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        return data.toJSON()
+      }
+
+      // Handle regular objects
+      if (Object.getPrototypeOf(data) === Object.prototype) {
+        const result = {}
+        for (const key in data) {
+          if (Object.prototype.hasOwnProperty.call(data, key)) {
+            result[key] = this.transformToPlain(data[key])
+          }
+        }
+        return result
+      }
+    }
+
+    // Use class-transformer for class instances
+    try {
+      return instanceToPlain(data)
+    } catch {
+      // If all else fails, return the original data
+      return data
+    }
   }
 
   /**

@@ -1,6 +1,6 @@
 import { applyDecorators, Type } from '@nestjs/common'
 import { ApiExtraModels, ApiOkResponse, ApiQuery, getSchemaPath } from '@nestjs/swagger'
-import { PaginationDto, SortOrder } from '../dto'
+import { SortOrder } from '../dto'
 
 /**
  * Interface for pagination response
