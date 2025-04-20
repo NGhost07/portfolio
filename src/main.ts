@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 import { ConfigService } from '@nestjs/config'
 import { BadRequestException, ValidationPipe } from '@nestjs/common'
+import { ResponseInterceptor } from './common/interceptors'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 
 async function bootstrap() {
@@ -14,6 +15,7 @@ async function bootstrap() {
     credentials: true,
   })
   app.useGlobalFilters()
+  app.useGlobalInterceptors(new ResponseInterceptor())
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: false,
