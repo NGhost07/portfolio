@@ -1,42 +1,46 @@
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
-import {ConfigService} from "@nestjs/config";
-import {BadRequestException, ValidationPipe} from "@nestjs/common";
-import {DocumentBuilder, SwaggerModule} from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config'
+import { BadRequestException, ValidationPipe } from '@nestjs/common'
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
   const config = app.get<ConfigService>(ConfigService)
 
   app.enableCors({
-    allowedHeaders: "*",
-    origin: "*",
+    allowedHeaders: '*',
+    origin: '*',
     credentials: true,
   })
   app.useGlobalFilters()
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: false,
-    forbidNonWhitelisted: false,
-    transform: true,
-    transformOptions: {
-      enableImplicitConversion: true,
-    },
-    exceptionFactory: (errors) => {
-      const messages = errors
-        .flatMap((error) =>
-          error.constraints ? Object.values(error.constraints) : []
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: false,
+      forbidNonWhitelisted: false,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+      exceptionFactory: (errors) => {
+        const messages = errors.flatMap((error) =>
+          error.constraints ? Object.values(error.constraints) : [],
         )
 
-      return new BadRequestException(messages)
-    },
-  }))
+        return new BadRequestException(messages)
+      },
+    }),
+  )
   // app.useGlobalInterceptors(new ResponseInterceptor())
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle("U238-Tracker API")
-    .setDescription("U238-Tracker API development")
-    .addServer(`http://localhost:${config.get('PORT')}`, `Development API[PORT=${config.get('PORT')}]`)
-    .addServer("https://be2.nambe.dev", "Development API")
+    .setTitle('U238-Tracker API')
+    .setDescription('U238-Tracker API development')
+    .addServer(
+      `http://localhost:${config.get('PORT')}`,
+      `Development API[PORT=${config.get('PORT')}]`,
+    )
+    .addServer('https://be2.nambe.dev', 'Development API')
     .addBearerAuth({
       description: `Please enter token in following format: Bearer <JWT>`,
       name: 'Authorization',
@@ -49,14 +53,14 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig, {
     deepScanRoutes: true,
   })
-  SwaggerModule.setup("docs", app, document, {
-    customCssUrl: ".",
+  SwaggerModule.setup('docs', app, document, {
+    customCssUrl: '.',
     swaggerOptions: {
       persistAuthorization: true,
       uiConfig: {
-        docExpansion: "none",
+        docExpansion: 'none',
       },
-      docExpansion: "none",
+      docExpansion: 'none',
     },
   })
 

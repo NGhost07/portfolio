@@ -7,7 +7,7 @@ This module provides a dynamic database connection system for the application. I
 - Dynamic module pattern for flexible configuration
 - Connection to MongoDB using environment variables
 - Support for registering Mongoose models
-- Database service for direct access to all models
+- Database service with dynamic model access
 - Pagination support through mongoose-paginate-v2
 - Extensible design for future database types
 
@@ -18,9 +18,9 @@ This module provides a dynamic database connection system for the application. I
 Import the `DbModule` in your application module:
 
 ```typescript
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { DbModule } from './modules/db';
+import { Module } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
+import { DbModule } from './modules/db'
 
 @Module({
   imports: [
@@ -33,51 +33,95 @@ import { DbModule } from './modules/db';
 export class AppModule {}
 ```
 
-### Using with Models
+### Creating a Schema with Pagination
 
-To use the module with Mongoose models:
+Create a schema with pagination support:
 
 ```typescript
-import { Module } from '@nestjs/common';
-import { DbModule } from '../db';
-import { Example, ExampleSchema } from './schemas/example.schema';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
+import { HydratedDocument } from 'mongoose'
+import * as paginate from 'mongoose-paginate-v2'
+
+export type UserDocument = HydratedDocument<User>
+
+@Schema({ timestamps: true })
+export class User {
+  @Prop({ required: true })
+  name: string
+
+  @Prop({ required: true, unique: true })
+  email: string
+}
+
+export const UserSchema = SchemaFactory.createForClass(User)
+
+// Add pagination plugin to the schema
+UserSchema.plugin(paginate)
+```
+
+### Registering Models
+
+Register your models in a feature module:
+
+```typescript
+import { Module } from '@nestjs/common'
+import { DbModule } from 'src/modules/db'
+import { User, UserSchema } from './schemas/user.schema'
 
 @Module({
   imports: [
     DbModule.forFeature([
-      { name: Example.name, schema: ExampleSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
-  providers: [YourService],
-  controllers: [YourController],
+  providers: [UserService],
+  controllers: [UserController],
 })
-export class YourModule {}
+export class UserModule {}
 ```
 
 ### Using the Database Service
 
-Inject the `DbService` in your services to access models directly:
+Inject the `DbService` in your services and use the `getModel` method to access models:
 
 ```typescript
-import { Injectable } from '@nestjs/common';
-import { DbService } from '../db';
+import { Injectable } from '@nestjs/common'
+import { DbService } from 'src/modules/db'
+import { PaginateModel } from 'mongoose-paginate-v2'
+import { User, UserDocument } from './schemas/user.schema'
 
 @Injectable()
-export class YourService {
-  constructor(private readonly dbService: DbService) {}
+export class UserService {
+  private userModel: PaginateModel<UserDocument>
 
-  async findAll() {
-    // Access the example model directly through DbService
-    return this.dbService.example.find();
+  constructor(private readonly dbService: DbService) {
+    // Get the User model from the DbService
+    this.userModel = this.dbService.getModel<UserDocument>('User') as PaginateModel<UserDocument>
   }
 
-  async findWithPagination(page = 1, limit = 10) {
-    // Use pagination
-    return this.dbService.example.paginate({}, { page, limit });
+  async findAll(page = 1, limit = 10) {
+    return this.userModel.paginate({}, { page, limit })
+  }
+
+  async findById(id: string) {
+    return this.userModel.findById(id)
+  }
+
+  async create(data: Partial<User>) {
+    const user = new this.userModel(data)
+    return user.save()
+  }
+
+  async update(id: string, data: Partial<User>) {
+    return this.userModel.findByIdAndUpdate(id, data, { new: true })
+  }
+
+  async delete(id: string) {
+    return this.userModel.findByIdAndDelete(id)
   }
 
   isDbConnected(): boolean {
-    return this.dbService.isConnected();
+    return this.dbService.isConnected()
   }
 }
 ```
@@ -86,52 +130,74 @@ export class YourService {
 
 The module requires the following environment variables:
 
-- `MONGO_URI`: MongoDB connection URI (e.g., `mongodb://localhost:27017/your-database`)
+- `MONGO_URI`: Primary MongoDB connection URI (e.g., `mongodb://localhost:27017/your-database`)
+- `MONGO_URI_SECONDARY`: Secondary MongoDB connection URI (optional)
 
-## Adding New Models
+## How It Works
 
-To add a new model to the DbService:
+### DbService
 
-1. Create a new schema in the `schemas` directory
-2. Add the pagination plugin to the schema
-3. Register the schema in `DbModule.forRoot()`
-4. Add a new property in `DbService`
-5. Inject the model into the `DbService` constructor
+The `DbService` provides a dynamic way to access models without directly injecting them. It uses a model registry and tries multiple ways to get a model:
 
-Example:
+1. First, it checks if the model is already in the registry
+2. If not, it tries to get the model from the NestJS DI container
+3. If that fails, it tries to get the model directly from the Mongoose connection
+
+This approach provides several benefits:
+
+- No need to inject models directly into the DbService
+- Models can be accessed by name, making the code more flexible
+- Services can get models on-demand without complex dependency injection
+
+### DbModule
+
+The `DbModule` provides the following static methods:
+
+- `forRoot()`: Sets up a single database connection and global providers
+- `forRootMultipleConnections()`: Sets up multiple database connections and global providers
+- `forFeature(models, connectionName)`: Registers Mongoose models for use in a feature module, optionally specifying a connection name
+- `forProviders(providers)`: Registers custom database providers for future extensions
+
+### Multiple Connections
+
+To use multiple database connections:
+
+1. Set both `MONGO_URI` and `MONGO_URI_SECONDARY` environment variables
+2. Use `DbModule.forRootMultipleConnections()` in your app module
+3. When registering models for the secondary connection, specify the connection name:
 
 ```typescript
-// 1. Create a new schema
-@Schema({ timestamps: true })
-export class User {
-  @Prop({ required: true })
-  name: string
-}
+@Module({
+  imports: [
+    DbModule.forFeature([
+      { name: User.name, schema: UserSchema }
+    ], 'secondary'),
+  ],
+  providers: [UserService],
+})
+export class UserModule {}
+```
 
-export const UserSchema = SchemaFactory.createForClass(User)
-UserSchema.plugin(mongoosePaginate)
+4. When getting models in your service, specify the connection name:
 
-// 2. Register in DbModule
-MongooseModule.forFeature([
-  { name: Example.name, schema: ExampleSchema },
-  { name: User.name, schema: UserSchema }, // Add new model
-]),
+```typescript
+@Injectable()
+export class UserService {
+  private userModel: Model<UserDocument>
 
-// 3. Update DbService
-export class DbService implements OnApplicationBootstrap {
-  example: PaginateModel<Example>
-  user: PaginateModel<User> // Add new property
-
-  constructor(
-    @InjectConnection() private readonly connection: Connection,
-    @InjectModel(Example.name) private exampleModel: PaginateModel<Example>,
-    @InjectModel(User.name) private userModel: PaginateModel<User>, // Inject new model
-  ) {
-    this.example = exampleModel
-    this.user = userModel // Initialize property
+  constructor(private readonly dbService: DbService) {
+    this.userModel = this.dbService.getModel<UserDocument>('User', 'secondary')
   }
 }
 ```
+
+## Examples
+
+Check the `examples` directory for complete examples of:
+
+- Schema definition with pagination
+- Service implementation using the DbService
+- Module configuration
 
 ## Future Extensions
 
