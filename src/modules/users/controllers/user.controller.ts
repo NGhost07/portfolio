@@ -5,13 +5,21 @@ import {
   Get,
   Param,
   Patch,
-  Post,
   Query,
+  UseGuards,
 } from '@nestjs/common'
 import { UserService } from '../services'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { CreateUserDto, QueryUserDto, UpdateUserDto } from '../dtos'
-import { ApiPaginated } from 'src/common/decorators'
+import { AuthUser, SystemRoles } from '../../auth/decorators'
+import { SystemRole } from '../enums'
+import { AuthPayload } from '../../auth/types'
+import {
+  ApiPaginated,
+  PaginationDto,
+  toPaginatedResponse,
+} from '../../../common'
+import { QueryUserDto, UpdateProfileDto, UpdateUserDto } from '../dtos/user.dto'
+import { SystemRolesGuard } from '../../auth/guards'
 import { User } from '../schemas'
 
 @Controller('users')
@@ -21,39 +29,89 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Find Users' })
+  @ApiOperation({ summary: 'Find users' })
+  @UseGuards(SystemRolesGuard)
+  @SystemRoles(SystemRole.ADMIN)
   @ApiPaginated(User, {
     description: 'List of users with pagination',
-    sortableFields: ['name', 'email', 'createdAt', 'updatedAt'],
+    sortableFields: ['createdAt', 'updatedAt'],
   })
-  async findUsers(@Query() query: QueryUserDto) {
-    return this.userService.findUsers(query)
+  async findUsers(
+    @Query() query: QueryUserDto,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    const paginationResult = await this.userService.paginate(
+      query,
+      paginationDto,
+    )
+
+    return {
+      message: 'Users retrieved successfully',
+      data: toPaginatedResponse(paginationResult),
+    }
   }
 
-  @Post()
-  @ApiOperation({ summary: 'Create User' })
-  async createUser(@Body() createUserDto: CreateUserDto) {
-    return this.userService.createUser(createUserDto)
+  @Get('/profile')
+  @ApiOperation({ summary: 'Get profile' })
+  async getProfile(@AuthUser() authPayload: AuthPayload) {
+    return {
+      message: 'Profile retrieved successfully',
+      data: await this.userService.findOne({ _id: authPayload.sub }),
+    }
+  }
+
+  @Patch('/profile')
+  @ApiOperation({ summary: 'Update profile' })
+  async updateProfile(
+    @AuthUser() authPayload: AuthPayload,
+    @Body() payload: UpdateProfileDto,
+  ) {
+    const updatedUser = await this.userService.findOneAndUpdate(
+      { _id: authPayload.sub },
+      payload,
+    )
+
+    return {
+      message: 'Profile updated successfully',
+      data: updatedUser,
+    }
   }
 
   @Get(':userId')
-  @ApiOperation({ summary: 'Find User by userId' })
+  @ApiOperation({ summary: 'Find user by id' })
+  @UseGuards(SystemRolesGuard)
+  @SystemRoles(SystemRole.ADMIN)
   async findUserById(@Param('userId') userId: string) {
-    return this.userService.findUserById(userId)
+    const user = await this.userService.findOne({ _id: userId })
+
+    return {
+      message: 'User retrieved successfully',
+      data: user,
+    }
   }
 
   @Patch(':userId')
-  @ApiOperation({ summary: 'Update User by userId' })
-  async updateUser(
+  @ApiOperation({ summary: 'Update user by id' })
+  @UseGuards(SystemRolesGuard)
+  @SystemRoles(SystemRole.ADMIN)
+  async updateUserById(
     @Param('userId') userId: string,
     @Body() payload: UpdateUserDto,
   ) {
-    return this.userService.updateUser(userId, payload)
+    return {
+      message: 'User updated successfully',
+      data: await this.userService.findOneAndUpdate({ _id: userId }, payload),
+    }
   }
 
   @Delete(':userId')
-  @ApiOperation({ summary: 'Delete User by userId' })
-  async deleteUser(@Param('userId') userId: string) {
-    return this.userService.deleteUser(userId)
+  @ApiOperation({ summary: 'Delete user by id' })
+  @UseGuards(SystemRolesGuard)
+  @SystemRoles(SystemRole.ADMIN)
+  async deleteUserById(@Param('userId') userId: string) {
+    return {
+      message: 'User deleted successfully',
+      data: await this.userService.deleteOne({ _id: userId }),
+    }
   }
 }

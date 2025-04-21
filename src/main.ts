@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 import { ConfigService } from '@nestjs/config'
 import { BadRequestException, ValidationPipe } from '@nestjs/common'
-import { ResponseInterceptor } from './common/interceptors'
+import { ResponseInterceptor } from './common'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 
 async function bootstrap() {
@@ -33,7 +33,6 @@ async function bootstrap() {
       },
     }),
   )
-  // app.useGlobalInterceptors(new ResponseInterceptor())
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('U238-Tracker API')
@@ -55,6 +54,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig, {
     deepScanRoutes: true,
   })
+
   SwaggerModule.setup('docs', app, document, {
     customCssUrl: '.',
     swaggerOptions: {

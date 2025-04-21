@@ -1,49 +1,34 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator'
-import { PaginationDto } from 'src/common/dto'
+import { ApiPropertyOptional } from '@nestjs/swagger'
+import { IsEnum, IsOptional, IsString } from 'class-validator'
+import { Gender } from '../enums'
 
-export class CreateUserDto {
-  @ApiProperty({ description: 'User name' })
-  @IsNotEmpty()
+export class UpdateProfileDto {
+  @ApiPropertyOptional({ type: String })
   @IsString()
-  name: string
-
-  @ApiProperty({ description: 'User email' })
-  @IsNotEmpty()
-  @IsEmail()
-  email: string
-
-  @ApiPropertyOptional({ description: 'User avatar URL' })
   @IsOptional()
-  @IsString()
-  avatar?: string
+  fullName?: string
+
+  @ApiPropertyOptional({ type: String, enum: Gender })
+  @IsEnum(Gender)
+  @IsOptional()
+  gender?: Gender
 }
 
-export class UpdateUserDto {
-  @ApiPropertyOptional({ description: 'User name' })
-  @IsOptional()
-  @IsString()
-  name?: string
+export class UpdateUserDto {}
 
-  @ApiPropertyOptional({ description: 'User email' })
+export class QueryUserDto {
+  @ApiPropertyOptional({ type: String })
+  @IsString()
   @IsOptional()
-  @IsEmail()
   email?: string
 
-  @ApiPropertyOptional({ description: 'User avatar URL' })
-  @IsOptional()
+  @ApiPropertyOptional({ type: String })
   @IsString()
-  avatar?: string
-}
+  @IsOptional()
+  fullName?: string
 
-export class QueryUserDto extends PaginationDto {
-  @ApiPropertyOptional({ description: 'Filter by name' })
+  @ApiPropertyOptional({ type: String, enum: Gender })
+  @IsEnum(Gender)
   @IsOptional()
-  @IsString()
-  name?: string
-
-  @ApiPropertyOptional({ description: 'Filter by email' })
-  @IsOptional()
-  @IsString()
-  email?: string
+  gender?: Gender
 }

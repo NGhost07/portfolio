@@ -14,7 +14,7 @@ export class DbService implements OnApplicationBootstrap {
 
   constructor(
     @InjectConnection() private readonly primaryConnection: Connection,
-    private readonly moduleRef: ModuleRef
+    private readonly moduleRef: ModuleRef,
   ) {
     this.logger.log('Database service initialized')
 
@@ -54,7 +54,9 @@ export class DbService implements OnApplicationBootstrap {
         return model as Model<T>
       }
     } catch (error) {
-      this.logger.warn(`Model ${modelName} not found in DI container: ${error.message}`)
+      this.logger.warn(
+        `Model ${modelName} not found in DI container: ${error.message}`,
+      )
     }
 
     // Get the appropriate connection
@@ -71,8 +73,12 @@ export class DbService implements OnApplicationBootstrap {
       this.modelRegistry.set(modelKey, model)
       return model
     } catch (error) {
-      this.logger.error(`Failed to get model ${modelName} from connection ${connectionName}: ${error.message}`)
-      throw new Error(`Model ${modelName} not found in connection ${connectionName}`)
+      this.logger.error(
+        `Failed to get model ${modelName} from connection ${connectionName}: ${error.message}`,
+      )
+      throw new Error(
+        `Model ${modelName} not found in connection ${connectionName}`,
+      )
     }
   }
 

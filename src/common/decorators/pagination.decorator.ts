@@ -1,10 +1,12 @@
 import { applyDecorators, Type } from '@nestjs/common'
-import { ApiExtraModels, ApiOkResponse, ApiQuery, getSchemaPath } from '@nestjs/swagger'
+import {
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiQuery,
+  getSchemaPath,
+} from '@nestjs/swagger'
 import { SortOrder } from '../dto'
 
-/**
- * Interface for pagination response
- */
 export interface PaginatedResponseDto<T> {
   items: T[]
   meta: {
@@ -16,20 +18,15 @@ export interface PaginatedResponseDto<T> {
   }
 }
 
-/**
- * Decorator for paginated API endpoints
- * @param model - The model class for the items in the response
- * @param options - Additional options for the decorator
- * @returns Decorator function
- */
-export const ApiPaginated = <T extends Type<any>>(
+export const ApiPaginated = <T extends Type>(
   model: T,
   options?: {
     description?: string
     sortableFields?: string[]
   },
 ) => {
-  const { description = 'Paginated response', sortableFields = [] } = options || {}
+  const { description = 'Paginated response', sortableFields = [] } =
+    options || {}
 
   return applyDecorators(
     ApiExtraModels(model),

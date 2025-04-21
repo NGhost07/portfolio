@@ -41,7 +41,10 @@ export class DbModule {
    * @param connectionName - Name of the connection to use (optional)
    * @returns DynamicModule
    */
-  static forFeature(models: ModelDefinition[], connectionName?: string): DynamicModule {
+  static forFeature(
+    models: ModelDefinition[],
+    connectionName?: string,
+  ): DynamicModule {
     return {
       module: DbModule,
       imports: [MongooseModule.forFeature(models, connectionName)],

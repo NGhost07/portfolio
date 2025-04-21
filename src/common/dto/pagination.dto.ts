@@ -37,7 +37,7 @@ export class PaginationDto {
   @ApiPropertyOptional({
     description: 'Field to sort by',
     type: String,
-    default: 'createdAt'
+    default: 'createdAt',
   })
   @IsString()
   @IsOptional()
@@ -52,20 +52,12 @@ export class PaginationDto {
   @IsOptional()
   sortOrder?: SortOrder = SortOrder.DESC
 
-  /**
-   * Get skip value for pagination
-   * @returns Number of items to skip
-   */
   get skip(): number {
     const page = this.page || 1
     const limit = this.limit || 10
     return (page - 1) * limit
   }
 
-  /**
-   * Get sort options for MongoDB
-   * @returns Sort options object
-   */
   get sort(): Record<string, 1 | -1> | null {
     if (!this.sortBy) return null
     const sortOrder = this.sortOrder || SortOrder.DESC

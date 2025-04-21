@@ -1,71 +1,61 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
-import { QueryUserDto, UpdateUserDto, CreateUserDto } from '../dtos'
+import { Injectable } from '@nestjs/common'
 import { DbService } from 'src/modules/db'
-import { PaginateModel } from 'mongoose'
-import { toPaginatedResponse } from 'src/common/helpers'
-import { SortOrder } from 'src/common/dto/pagination.dto'
-import { UserDocument } from '../schemas'
+import { FilterQuery, PaginateModel, PaginateOptions, Types } from 'mongoose'
+import { User, UserDocument } from '../schemas'
+import { QueryUserDto } from '../dtos/user.dto'
+import { PaginationDto } from '../../../common'
 
 @Injectable()
 export class UserService {
   private userModel: PaginateModel<UserDocument>
 
   constructor(private readonly dbService: DbService) {
-    // Get the User model from the DbService
-    this.userModel = this.dbService.getModel<UserDocument>('User') as PaginateModel<UserDocument>
+    this.userModel = this.dbService.getModel<UserDocument>(
+      'User',
+    ) as PaginateModel<UserDocument>
   }
 
-  async findUsers(query: QueryUserDto) {
-    console.log(query)
-    const { page, limit, sortBy, sortOrder, ...rawFilters } = query
+  async paginate(query: QueryUserDto, paginationDto: PaginationDto) {
+    const filter: FilterQuery<User> = {}
+    if (query.email) filter.email = { $regex: query.email, options: 'i' }
+    if (query.fullName)
+      filter.fullName = { $regex: query.fullName, options: 'i' }
+    if (query.gender) filter.gender = query.gender
 
-    // Ensure sortBy is a string
-    const sortField = sortBy as string
-
-    // Remove undefined values from filters
-    const filters = Object.entries(rawFilters)
-      .filter(([_, value]) => value !== undefined && value !== null && value !== '')
-      .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {})
-
-    const options = {
-      page,
-      limit,
-      sort: { [sortField]: sortOrder === SortOrder.ASC ? 1 : -1 }
+    const options: PaginateOptions = {
+      page: paginationDto.page,
+      limit: paginationDto.limit,
+      sort: { [paginationDto.sortBy as any]: paginationDto.sortOrder },
     }
 
-    console.log(filters)
-    console.log(options)
-
-    const result = await this.userModel.paginate(filters, options)
-    return toPaginatedResponse(result)
+    return this.userModel.paginate(filter, options)
   }
 
-  async findUserById(userId: string) {
-    const user = await this.userModel.findById(userId)
-    if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`)
-    }
-    return user
+  async create(payload: User): Promise<UserDocument> {
+    return this.userModel.create(payload)
   }
 
-  async createUser(data: CreateUserDto) {
-    const user = new this.userModel(data)
-    return user.save()
+  async findOne(
+    filter: FilterQuery<User>,
+    select?: string,
+  ): Promise<UserDocument | null> {
+    return this.userModel.findOne(filter, select)
   }
 
-  async updateUser(userId: string, payload: UpdateUserDto) {
-    const user = await this.userModel.findByIdAndUpdate(userId, payload, { new: true })
-    if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`)
-    }
-    return user
+  async exists(
+    filter: FilterQuery<User>,
+  ): Promise<{ _id: Types.ObjectId } | null> {
+    return this.userModel.exists(filter)
   }
 
-  async deleteUser(userId: string) {
-    const user = await this.userModel.findByIdAndDelete(userId)
-    if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`)
-    }
-    return user
+  async findOneAndUpdate(
+    filter: FilterQuery<User>,
+    update: Partial<User>,
+  ): Promise<UserDocument | null> {
+    return this.userModel.findOneAndUpdate(filter, update, { new: true })
+  }
+
+  async deleteOne(filter: FilterQuery<User>): Promise<UserDocument | {}> {
+    return this.userModel.deleteOne(filter)
   }
 }
