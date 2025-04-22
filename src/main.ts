@@ -35,13 +35,13 @@ async function bootstrap() {
   )
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('U238-Tracker API')
-    .setDescription('U238-Tracker API development')
+    .setTitle('Portfolio API')
+    .setDescription('Portfolio API development')
     .addServer(
       `http://localhost:${config.get('PORT')}`,
       `Development API[PORT=${config.get('PORT')}]`,
     )
-    .addServer('https://be2.nambe.dev', 'Development API')
+    // .addServer('https://be2.nambe.dev', 'Development API')
     .addBearerAuth({
       description: `Please enter token in following format: Bearer <JWT>`,
       name: 'Authorization',
