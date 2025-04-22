@@ -40,17 +40,22 @@ export class AuthController {
     }
   }
 
-  @Post('/logout')
-  @ApiOperation({ summary: 'Logout User' })
-  async logout() {}
-
   @Post('/refresh')
   @Public()
   @ApiOperation({ summary: 'Refresh Token' })
   async refresh(@Body() payload: RefreshTokenDto) {
     return {
       message: 'Refresh token successfully',
-      data: await this.authService.jwtRefresh(payload.refreshToken),
+      data: await this.authService.refreshToken(payload.refreshToken),
+    }
+  }
+
+  @Post('/logout')
+  @ApiOperation({ summary: 'Logout User' })
+  async logout(@Body() payload: RefreshTokenDto) {
+    await this.authService.logout(payload.refreshToken)
+    return {
+      message: 'Logout successfully',
     }
   }
 

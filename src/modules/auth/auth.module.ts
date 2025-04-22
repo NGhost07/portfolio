@@ -6,21 +6,20 @@ import { UsersModule } from '../users/users.module'
 import { JwtModule } from '@nestjs/jwt'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { PassportModule } from '@nestjs/passport'
+import { RedisModule } from '../redis'
 
 @Global()
 @Module({
   imports: [
     UsersModule,
+    RedisModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory(config: ConfigService) {
         return {
-          secret: config.get('JWT_SECRET'),
+          secret: config.get<string>('JWT_ACCESS_SECRET'),
           signOptions: {
-            expiresIn: '1d',
-            algorithm: 'HS256',
-            audience: config.get('JWT_AUDIENCE') || '',
-            issuer: config.get('JWT_ISSUER') || '',
+            expiresIn: config.get<string>('JWT_ACCESS_EXPIRES_IN'),
           },
         }
       },

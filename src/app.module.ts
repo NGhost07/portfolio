@@ -4,7 +4,7 @@ import { DbModule } from './modules/db'
 import { UsersModule } from './modules/users/users.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { JwtAuthGuard } from './modules/auth/guards'
-import { LoggingModule } from './modules/logging'
+// import { LoggingModule } from './modules/logging'
 import { RedisModule } from './modules/redis'
 
 @Module({
@@ -13,8 +13,8 @@ import { RedisModule } from './modules/redis'
       isGlobal: true,
     }),
     DbModule.forRoot(),
-    LoggingModule,
     RedisModule.forRoot(),
+    // LoggingModule,
     UsersModule,
     AuthModule,
   ],

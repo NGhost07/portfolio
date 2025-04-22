@@ -1,17 +1,22 @@
-import { ConflictException, Injectable } from '@nestjs/common'
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common'
 import { UserService } from '../../users/services'
 import * as bcrypt from 'bcrypt'
 import { RegisterDto } from '../dtos'
-import { AuthPayload, JwtSign } from '../types'
-import { JwtService } from '@nestjs/jwt'
-import { ConfigService } from '@nestjs/config'
+import { TokenService } from './token.service'
+import { TokenResponse } from '../interfaces'
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name)
+
   constructor(
-    private readonly config: ConfigService,
-    private readonly jwt: JwtService,
     private readonly userService: UserService,
+    private readonly tokenService: TokenService,
   ) {}
 
   async register(payload: RegisterDto) {
@@ -28,50 +33,34 @@ export class AuthService {
     return result
   }
 
-  async login(user: any) {
-    const authPayload: AuthPayload = {
-      sub: user._id,
-      fullName: user.fullName,
-      roles: user.roles,
-    }
-
-    return this.jwtSign(authPayload)
-  }
-
-  async jwtRefresh(refreshToken: string): Promise<JwtSign> {
-    const payload = this.jwt.verify(refreshToken, {
-      secret: this.config.get<string>('JWT_REFRESH_SECRET'),
-    })
-    const user = await this.userService.findOne({ _id: payload.sub })
-    if (!user) throw new Error('User not found')
-
-    const authPayload: AuthPayload = {
-      sub: user._id.toString(),
-      fullName: user.fullName,
-      roles: user.roles,
-    }
-
-    return this.jwtSign(authPayload)
-  }
-
-  private jwtSign(payload: AuthPayload): JwtSign {
-    return {
-      access_token: this.jwt.sign(payload, {
-        algorithm: 'HS256',
-        audience: this.config.get<string>('JWT_AUDIENCE') || '',
-        issuer: this.config.get<string>('JWT_ISSUER') || '',
-      }),
-      refresh_token: this.jwtSignRefresh(payload),
+  async login(user: any): Promise<TokenResponse> {
+    try {
+      return this.tokenService.generateTokens(
+        user._id.toString(),
+        user.fullName,
+        user.roles || [],
+      )
+    } catch (error) {
+      this.logger.error(`Login failed: ${error.message}`, error.stack)
+      throw new UnauthorizedException('Login failed')
     }
   }
 
-  private jwtSignRefresh(payload: AuthPayload): string {
-    return this.jwt.sign(
-      { sub: payload.sub },
-      {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
-        expiresIn: '7d',
-      },
-    )
+  async refreshToken(refreshToken: string): Promise<TokenResponse> {
+    try {
+      return this.tokenService.refreshAccessToken(refreshToken)
+    } catch (error) {
+      this.logger.error(`Token refresh failed: ${error.message}`, error.stack)
+      throw new UnauthorizedException('Invalid refresh token')
+    }
+  }
+
+  async logout(refreshToken: string): Promise<void> {
+    try {
+      await this.tokenService.logout(refreshToken)
+    } catch (error) {
+      this.logger.error(`Logout failed: ${error.message}`, error.stack)
+      // Don't throw error for logout - it's okay if token is already invalid
+    }
   }
 }
