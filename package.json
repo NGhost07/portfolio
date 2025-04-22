@@ -21,6 +21,7 @@
     "migration:create": "ts-node src/modules/db/migrations/create-migration.ts"
   },
   "dependencies": {
+    "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -33,8 +34,11 @@
     "@types/passport-facebook": "^3.0.3",
     "@types/passport-google-oauth20": "^2.0.16",
     "bcrypt": "^5.1.1",
+    "cache-manager": "^6.4.2",
+    "cache-manager-ioredis": "^2.1.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "ioredis": "^5.6.1",
     "mongoose": "^8.13.2",
     "mongoose-paginate-v2": "^1.9.0",
     "nest-winston": "^1.10.2",
