@@ -59,7 +59,7 @@ export class AuthService {
       access_token: this.jwt.sign(payload, {
         algorithm: 'HS256',
         audience: this.config.get<string>('JWT_AUDIENCE') || '',
-        issuer: this.config.get<string>('JWT_ISSUER') || ''
+        issuer: this.config.get<string>('JWT_ISSUER') || '',
       }),
       refresh_token: this.jwtSignRefresh(payload),
     }

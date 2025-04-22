@@ -20,7 +20,7 @@ import { PassportModule } from '@nestjs/passport'
             expiresIn: '1d',
             algorithm: 'HS256',
             audience: config.get('JWT_AUDIENCE') || '',
-            issuer: config.get('JWT_ISSUER') || ''
+            issuer: config.get('JWT_ISSUER') || '',
           },
         }
       },
