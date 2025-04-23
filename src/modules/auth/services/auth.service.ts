@@ -2,12 +2,13 @@ import {
   ConflictException,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common'
 import { UserService } from '../../users/services'
 import * as bcrypt from 'bcrypt'
 import { RegisterDto } from '../dtos'
-import { TokenResponse } from '../interfaces'
+import { TokenPayload, TokenResponse } from '../interfaces'
 import { JwtService } from '@nestjs/jwt'
 import { RedisService } from '../../redis'
 import { SystemRole } from '../../users/enums'
@@ -84,6 +85,34 @@ export class AuthService {
     ])
   }
 
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.userService.findOne(
+      { _id: userId },
+      '+hashedPassword',
+    )
+
+    if (!user || !user.hashedPassword) {
+      throw new NotFoundException('User not found')
+    }
+
+    if (!bcrypt.compareSync(currentPassword, user.hashedPassword)) {
+      throw new UnauthorizedException('Current password is incorrect')
+    }
+
+    await this.userService.findOneAndUpdate(
+      { _id: userId },
+      { hashedPassword: bcrypt.hashSync(newPassword, 10) },
+    )
+
+    const now = Math.floor(Date.now() / 1000)
+    const ttl = 999999
+    await this.redisService.set(`token_iat_available:${userId}`, now, ttl)
+  }
+
   /**
    * Generates new access and refresh tokens using a valid refresh token
    * @param refreshToken - The current refresh token
@@ -113,13 +142,39 @@ export class AuthService {
   }
 
   /**
-   * Checks if a token has been revoked (blacklisted)
-   * @param jti - The JWT ID to check
-   * @returns Boolean indicating if the token is revoked
+   * Validates a token by checking if it's not blacklisted and not issued before password change
+   * @param token - access token or refresh token to validate
+   * @returns Boolean indicating if the token is valid
    */
-  async checkTokenIsRevoked(jti: string): Promise<boolean> {
+  async validateToken(token: string): Promise<boolean> {
     try {
-      return this.redisService.exists(`blacklist:${jti}`)
+      const payload = this.jwtService.decode(token) as TokenPayload
+      if (!payload || !payload.jti || !payload.sub) {
+        this.logger.error('Invalid token payload: missing jti or sub')
+        return false
+      }
+
+      const isBlacklisted = await this.redisService.exists(
+        `token_blacklist:${payload.jti}`,
+      )
+      if (isBlacklisted) {
+        this.logger.warn(`Token with jti ${payload.jti} is blacklisted`)
+        return false
+      }
+
+      if (payload.iat) {
+        const tokenIatAvailable = await this.redisService.get<number>(
+          `token_iat_available:${payload.sub}`,
+        )
+        if (tokenIatAvailable && payload.iat < tokenIatAvailable) {
+          this.logger.warn(
+            `Token for user ${payload.sub} was issued before password change`,
+          )
+          return false
+        }
+      }
+
+      return true
     } catch (error) {
       this.logger.error(
         `Failed to validate token: ${error.message}`,
@@ -197,7 +252,7 @@ export class AuthService {
       const ttl = Math.max(exp - now, 0)
 
       // Add token to blacklist
-      await this.redisService.set(`blacklist:${jti}`, 'true', ttl)
+      await this.redisService.set(`token_blacklist:${jti}`, 'true', ttl)
     } catch (error) {
       this.logger.error(`Failed to revoke token: ${error.message}`, error.stack)
       throw new Error('Failed to revoke token')

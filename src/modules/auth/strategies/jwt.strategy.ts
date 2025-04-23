@@ -2,8 +2,8 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common'
 import { PassportStrategy } from '@nestjs/passport'
 import { ExtractJwt, Strategy } from 'passport-jwt'
 import { ConfigService } from '@nestjs/config'
-import { AuthPayload } from '../types'
 import { AuthService } from '../services'
+import { AuthPayload } from '../types'
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -17,26 +17,34 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: configService.get<string>('JWT_ACCESS_SECRET') || '',
+      passReqToCallback: true,
     })
   }
 
   /**
-   * Validate JWT token and check if it's not revoked
+   * Validate JWT token and check if it's valid
+   * @param request The request object
    * @param payload Token payload
    * @returns User information
    */
-  async validate(payload: AuthPayload) {
+  async validate(request: any, payload: AuthPayload) {
     // Validate payload structure
     if (!payload.sub || !payload.jti) {
       this.logger.error('Invalid token payload: missing sub or jti')
       throw new UnauthorizedException('Invalid token payload')
     }
 
-    const isRevoked = await this.authService.checkTokenIsRevoked(payload.jti)
-    if (isRevoked) {
-      this.logger.warn(`Token with jti ${payload.jti} has been revoked`)
-      // Return early with a clear error message
-      throw new UnauthorizedException('Token has been revoked')
+    const token = ExtractJwt.fromAuthHeaderAsBearerToken()(request)
+
+    if (!token) {
+      this.logger.error('No token found in request')
+      throw new UnauthorizedException('No token found in request')
+    }
+
+    const isValid = await this.authService.validateToken(token)
+    if (!isValid) {
+      this.logger.warn(`Token for user ${payload.sub} is invalid`)
+      throw new UnauthorizedException('Token is invalid or has been revoked')
     }
 
     return payload
