@@ -52,8 +52,14 @@ export class AuthController {
 
   @Post('/logout')
   @ApiOperation({ summary: 'Logout User' })
-  async logout(@Body() payload: RefreshTokenDto) {
-    await this.authService.logout(payload.refreshToken)
+  async logout(@Body() payload: RefreshTokenDto, @Req() req) {
+    // Extract access token from Authorization header
+    const authHeader = req.headers.authorization
+    const accessToken = authHeader?.split(' ')[1]
+
+    // Logout with both refresh token and access token
+    await this.authService.logout(payload.refreshToken, accessToken)
+
     return {
       message: 'Logout successfully',
     }
