@@ -109,7 +109,7 @@ export class AuthService {
     )
 
     const now = Math.floor(Date.now() / 1000)
-    const ttl = 999999
+    const ttl = this.configService.get<number>('JWT_ACCESS_EXPIRES_IN')
     await this.redisService.set(`token_iat_available:${userId}`, now, ttl)
   }
 
